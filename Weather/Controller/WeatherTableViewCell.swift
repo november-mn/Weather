@@ -2,7 +2,7 @@
 //  WeatherTableViewCell.swift
 //  Weather
 //
-//  Created by Sally Wang on 10/29/21.
+//  Created by Menghui Wang on 10/29/21.
 //
 
 import UIKit

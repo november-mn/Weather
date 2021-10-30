@@ -9,6 +9,7 @@ import UIKit
 import SwiftyJSON
 import SwiftSpinner
 import Alamofire
+import RealmSwift
 
 class SearchCityViewController: UIViewController, UISearchBarDelegate, UITableViewDelegate, UITableViewDataSource {
    
@@ -30,20 +31,20 @@ class SearchCityViewController: UIViewController, UISearchBarDelegate, UITableVi
             return
         }
         getCitiesFromSearch(searchText)
-
     }
     
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         // You will change this to arrCityInfo.count
-        return arr.count
+        return arrCityInfo.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         
         let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
         
-        cell.textLabel?.text = arr[indexPath.row] // You will change this to getr values from arrCityinfo and assign text
+        let cityInfo = arrCityInfo[indexPath.row]
+        cell.textLabel?.text = "\(cityInfo.localizedName) \(cityInfo.administrativeID), \(cityInfo.countryLocalizedName)"
         
         
         return cell
@@ -55,15 +56,27 @@ class SearchCityViewController: UIViewController, UISearchBarDelegate, UITableVi
     func getCitiesFromSearch(_ searchText : String) {
         // Network call from there
         let url = getSearchURL(searchText)
-        
     
-        Alamofire.request(url).responseJSON { response in
-            
+        AF.request(url).responseJSON { response in
             if response.error != nil {
                 print(response.error?.localizedDescription)
             }
-            
-            
+            self.arrCityInfo.removeAll()
+            guard let cities = JSON( response.data!).array else {
+                self.tblView.reloadData()
+                return
+            }
+            for cityJson in cities {
+                let cityInfo = CityInfo()
+                cityInfo.key = cityJson["Key"].stringValue
+                cityInfo.type = cityJson["Type"].stringValue
+                cityInfo.localizedName = cityJson["LocalizedName"].stringValue
+                cityInfo.countryLocalizedName = cityJson["Country"]["LocalizedName"].stringValue
+                cityInfo.administrativeID = cityJson["AdministrativeArea"]["ID"].stringValue
+
+                self.arrCityInfo.append(cityInfo)
+            }
+            self.tblView.reloadData()
             // You will receive JSON array
             // Parse the JSON array
             // Add values in arrCityInfo
@@ -72,9 +85,20 @@ class SearchCityViewController: UIViewController, UISearchBarDelegate, UITableVi
         
     }
     
-    func tableView(_ tableView: UITableView, didDeselectRowAt indexPath: IndexPath) {
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         // You will get the Index of the city info from here and then add it into the realm Database
         // Once the city is added in the realm DB pop the navigation view controller
+        print(arrCityInfo[indexPath.row])
+        do{
+            let realm = try Realm()
+            try realm.write({
+                realm.add(arrCityInfo[indexPath.row], update: .modified)
+                navigationController?.popViewController(animated: true)
+                print(arrCityInfo[indexPath.row])
+            })
+       }catch{
+           print("Error in reading Database \(error)")
+       }
     }
 
 }
